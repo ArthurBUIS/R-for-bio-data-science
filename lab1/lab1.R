@@ -25,3 +25,9 @@ ggsave(filename = "mpg-plot.png", plot = my_bar_plot)
 
 # my_bar_plot was saved
 
+# Using source function:
+
+print('hello')
+# When typing source("lab1.R") in the console, it executes the instruction in
+# this file (including the print)
+
