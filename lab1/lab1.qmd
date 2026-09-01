@@ -3,6 +3,7 @@ title: "lab1"
 author: "Arthur Buis"
 format: html
 editor: visual
+bibliography: references.bib
 ---
 
 ## Quarto
@@ -25,3 +26,16 @@ You can add options to executable code like this
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+#| label: simple-addition
+2 + 2
+```
+
+[@wickham2019]
+
+[^1]
+
+[^1]: I am a footnote
+
+------------------------------------------------------------------------
