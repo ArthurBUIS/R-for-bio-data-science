@@ -1,0 +1,201 @@
+---
+title: "lab2"
+format: html
+editor: visual
+---
+
+### Task 1
+
+```{r}
+# Load the data
+
+load("../data/gravier.RData")
+```
+
+```{r}
+#| message: false
+
+# Useful library
+
+library("tidyverse")
+```
+
+```{r}
+# Code chunk from the lab
+set.seed(676571)
+cancer_data=mutate(as_tibble(pluck(gravier,"x")),y=pluck(gravier,"y"),pt_id=1:length(pluck(gravier, "y")),age=round(rnorm(length(pluck(gravier,"y")),mean=55,sd=10),1))
+cancer_data=rename(cancer_data,event_label=y)
+cancer_data$age_group=cut(cancer_data$age,breaks=seq(10,100,by=10))
+cancer_data=relocate(cancer_data,c(pt_id,age,age_group,pt_id,event_label))
+```
+
+```{r}
+# T1: scatter plot of one variable against another
+
+ggplot(data = cancer_data,
+       mapping = aes(x = age,
+                     y = g2E09)) +
+  geom_point() +
+  labs()
+```
+```{r}
+# T2: line graph of one variable against another
+
+ggplot(data = cancer_data,
+       mapping = aes(x = g2E09,
+                     y = g7F07)) +
+  geom_line() +
+  labs()
+```
+```{r}
+# T3: box plot of one variable
+
+ggplot(data = cancer_data,
+       mapping = aes(x = "g2E09",
+                     y = g2E09)) +
+  geom_boxplot() +
+  labs(x = "Gene",
+       y = "Expression",
+       title = "Distribution of g2E09 expression")
+```
+Note: aes(y = g2E09) alone (no x) also produces a single box in current ggplot2 — the x = "..." trick just gives the axis a nicer label and matches what the course expects.
+
+```{r}
+# T4: histogram of one variable
+
+ggplot(data = cancer_data,
+       mapping = aes(x = g2E09)) +
+  geom_histogram(bins=20) +
+  labs(x = "Gene expression",
+       y = "Count",
+       title = "Histogram of g2E09 expression")
+```
+
+```{r}
+# T5: Density plot of one variable
+
+ggplot(data = cancer_data,
+       mapping = aes(x = g2E09)) +
+  geom_density(adjust=1.2) + # smoothness parameter
+  labs(x = "Gene expression",
+       y = "Density",
+       title = "Density of g2E09 expression")
+```
+```{r}
+# T6: Pick your favorite gene and create a box plot of expression levels stratified on the variable event_label
+
+ggplot(data = cancer_data,
+       mapping = aes(x = event_label,
+                     y = g2E09,
+                     fill = event_label)) + # More beautiful
+  geom_boxplot(outlier.shape = NA) + # Goes along with the jitter option
+    labs(x = "Event label",
+       y = "g2E09 expression",
+       title = "g2E09 expression stratified by event label") +
+  geom_jitter(width = 0.2, alpha = 0.2) # Show the point distribution
+```
+```{r}
+# T7: Same with density plot
+
+ggplot(data = cancer_data,
+       mapping = aes(x = g2E09,
+                     color = event_label)) +
+  geom_density() +
+  labs(x = "Event label",
+       y = "Distribution",
+       title = "Distribution of g2E09 expression stratified on the event label")
+```
+```{r}
+# T8: Pick your favourite gene and create a box plot of expression levels stratified on the variable age_group
+#    Then, add stratification on event_label
+#    Then, add transparency to the boxes
+#    Then, add some labels
+
+ggplot(data = cancer_data,
+       mapping = aes(x = age_group,
+                     y = g2E09,
+                     fill = event_label)) + # Additional stratification layer
+  geom_boxplot(outlier.shape = NA,
+               alpha = 0.5) +       # transparency on the boxes
+  labs(x = "Age group",
+       y = "g2E09 expression",
+       fill = "Event label",
+       title = "g2E09 expression by age group and event label")
+```
+
+
+```{r}
+# T8: Alternative option
+
+ggplot(cancer_data, aes(x = age_group, y = g2E09, fill = age_group)) +
+  geom_boxplot(alpha = 0.5) +
+  facet_wrap(~ event_label) + # Alternative option
+  labs(x = "Age group", y = "g2E09 expression")
+```
+
+```{r}
+#| message: false
+# T9: Pick your favourite gene and create a scatter plot of expression levels versus age
+#    Then, add stratification on event_label
+#    Then, add a smoothing line
+#    Then, add some labels
+
+
+ggplot(data = cancer_data,
+       mapping = aes(x = age,
+                     y = g7F07,
+                     color = event_label)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Age",
+       y = "Gene g7F07",
+       title = "Scatter plot of expression levels versus age")
+```
+```{r}
+#| message: false
+# T10: Pick your favorite two genes and create a scatter plot of their expression levels
+    # Then, add stratification on event_label
+    # Then, add a smoothing line
+    # Then, show split into separate panes based on the variable age_group
+    # Then, add some labels
+    # Change the event_label title of the legend
+
+
+
+ggplot(data = cancer_data,
+       mapping = aes(x = g2E09,
+                     y = g7F07,
+                     color = event_label)) +
+  facet_wrap(~ age_group) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) + # Impossible to use the classic geom_smooth there, too few points
+  labs(x = "g2E09 expression",
+       y = "g7F07 expression",
+       color = "Event label",
+       title = "Scatter plot of expression levels")
+```
+
+```{r}
+# T11: Recreating a plot
+
+ggplot(data = cancer_data,
+       mapping=aes(x = log2(1 + g1CNS507),
+                   y = event_label,
+                   fill = event_label)) +
+  geom_boxplot(alpha = 0.5) +       # transparency on the boxes
+  coord_cartesian(xlim = c(-0.9, 0.6)) +
+  scale_x_continuous(breaks = seq(-0.8, 0.6, by = 0.4)) +
+  guides(fill = "none") + # To hide the event_label fill legend
+  labs(x = "Expression level of g1CNS507 (log2 transformed)",
+       y = "Event after diagnosis",
+       title = "A prognostic DNA signature for T1T2 node-negative breast cancer patient",
+       subtitle = "Labelling: good = no event, poor = early metastasis")
+```
+
+### Q5: Using your biological knowledge, what is your interpretation of the plot?
+
+This plot is meant to identify the differences between the distribution of gene g1CNS507 between ill and healthy patients, eventually showing a correlation between this gene's expression and the outcome of the disease
+
+
+
+
