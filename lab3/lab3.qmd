@@ -1,0 +1,187 @@
+---
+title: "lab3"
+author: "Arthur Buis"
+format: html
+editor: visual
+---
+
+## Setting things up
+
+```{r}
+library(tidyverse)
+library("here")
+```
+
+```{r}
+#| eval: false
+base_url <- "http://userweb.eng.gla.ac.uk/umer.ijaz/bioinformatics/ecological/"
+raw_data_path <- here("data/_raw/")
+
+SPE <- read_csv(file = str_c(base_url, "SPE_pitlatrine.csv"))
+write_csv(x = SPE,
+          file = str_c(raw_data_path, "SPE_pitlatrine.csv"))
+
+ENV <- read_csv(file = str_c(base_url, "ENV_pitlatrine.csv"))
+write_csv(x = ENV,
+          file = str_c(raw_data_path, "ENV_pitlatrine.csv"))
+```
+
+### What is data wrangling?
+
+Data wrangling is the process of converting raw, messy data into a clean, structured, and usable format for analysis.
+
+```{r}
+#| eval: false
+SPE |> 
+  pivot_longer(cols = -Taxa,
+               names_to = "Samples",
+               values_to = "OTU_Count")  |> 
+  full_join(ENV, by = "Samples") |> 
+  mutate(site = case_when(str_detect(Samples, "^T") ~ "Tanzania",
+                          str_detect(Samples, "^V") ~ "Vietnam")) |>  
+  write_tsv(file = here("data/SPE_ENV.tsv"))
+```
+
+### Read the data
+
+```{r}
+SPE_ENV <- read_tsv(file = here("data/SPE_ENV.tsv"))
+SPE_ENV
+```
+
+### Task 1
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = OTU_Count,
+                     y = Taxa)) +
+  geom_boxplot(aes(fill=site))
+```
+### Task 2
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = site,
+                     y = Temp)) +
+  geom_boxplot()
+```
+
+### Task 3
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = Temp,
+                     y = pH)) +
+  geom_point(aes(color=site))
+```
+
+### Task 4
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = Temp,
+                     y = pH,
+                     label=Samples)) +
+  geom_label(aes(color=site), size=3)
+```
+
+### Task 5
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = NH4)) +
+  geom_density(aes(fill=site))
+```
+
+```{r}
+SPE_ENV_nozero <- filter(SPE_ENV, NH4 > 0)
+
+ggplot(data = SPE_ENV_nozero,
+       mapping = aes(x = log2(NH4))) +
+  geom_density(aes(fill = site), alpha = 0.4)
+```
+
+### Task 6
+
+```{r}
+ggplot(data=SPE_ENV,
+       mapping = aes(x = CODt,
+                     y = CODs)) +
+  geom_point(aes(color=site)) +
+  geom_smooth(method = "lm", aes(color=site))
+```
+
+### Task 7
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+ggplot(data = SPE_ENV,
+       mapping = aes(x = Taxa,
+                     y = Samples,
+                     fill = OTU_Count)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue",
+                       high = "red",
+                       mid = "white",
+                       midpoint = 10000,
+                       guide = "colourbar") +
+  theme(text = element_text(size = 10),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Task 8
+
+```{r}
+library(ggridges)
+```
+
+
+```{r}
+
+taxa_of_interest <- c("Sphingobacteria", "Methanobacteria", "Clostridia",
+                      "Anaerolineae", "Actinobacteria")
+
+density_df <- SPE_ENV |>
+  filter(Taxa %in% taxa_of_interest)
+
+ggplot(data = density_df,
+       mapping = aes(x = OTU_Count, y = Taxa, fill = Taxa)) +
+  facet_wrap(~ site) +
+  geom_density_ridges(alpha = 0.5) +
+  scale_fill_viridis_d() +
+  labs(y = 'Taxa Identified',
+       title = "OTU Count Distribution for 5 Taxa Stratified by Site",
+       caption = "Data from doi.org/10.1111/1751-7915.12334") +
+    theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Task 9
+
+
+```{r}
+env_numeric <- ENV |>
+  select(-Samples)
+
+pca_result <- prcomp(env_numeric, scale. = TRUE)
+
+variance_explained <- summary(pca_result)$importance[2, 1:2] * 100
+
+pca_scores <- as_tibble(pca_result$x) |>
+  mutate(Samples = ENV$Samples,
+         site = if_else(str_starts(Samples, "T_"), "Tanzania", "Vietnam"))
+
+ggplot(data = pca_scores,
+       mapping = aes(x = PC1, y = PC2, color = site)) +
+  geom_point(size = 3) +
+  labs(x = paste0("PC1 (", round(variance_explained[1], 1), "%)"),
+       y = paste0("PC2 (", round(variance_explained[2], 1), "%)"),
+       color = "Site",
+       title = "PCA of environmental variables across samples") +
+  theme_minimal() +
+  theme(legend.position = 'bottom')
+```
+

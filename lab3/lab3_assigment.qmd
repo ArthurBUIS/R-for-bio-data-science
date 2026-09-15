@@ -1,0 +1,71 @@
+---
+title: "Lab 3 Assignment: Group 07"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+## Setting things up
+
+```{r}
+library(tidyverse)
+library("here")
+```
+
+```{r}
+base_url <- "http://userweb.eng.gla.ac.uk/umer.ijaz/bioinformatics/ecological/"
+raw_data_path <- here("data/_raw/")
+
+SPE <- read_csv(file = str_c(base_url, "SPE_pitlatrine.csv"))
+write_csv(x = SPE,
+          file = str_c(raw_data_path, "SPE_pitlatrine.csv"))
+
+ENV <- read_csv(file = str_c(base_url, "ENV_pitlatrine.csv"))
+write_csv(x = ENV,
+          file = str_c(raw_data_path, "ENV_pitlatrine.csv"))
+```
+
+```{r}
+SPE |> 
+  pivot_longer(cols = -Taxa,
+               names_to = "Samples",
+               values_to = "OTU_Count")  |> 
+  full_join(ENV, by = "Samples") |> 
+  mutate(site = case_when(str_detect(Samples, "^T") ~ "Tanzania",
+                          str_detect(Samples, "^V") ~ "Vietnam")) |>  
+  write_tsv(file = here("data/SPE_ENV.tsv"))
+```
+
+```{r}
+SPE_ENV <- read_tsv(file = here("data/SPE_ENV.tsv"))
+SPE_ENV
+```
+
+
+### Task 9: Group assignment
+
+```{r}
+env_numeric <- ENV |>
+  select(-Samples)
+
+pca_result <- prcomp(env_numeric, scale. = TRUE)
+
+variance_explained <- summary(pca_result)$importance[2, 1:2] * 100
+
+pca_scores <- as_tibble(pca_result$x) |>
+  mutate(Samples = ENV$Samples,
+         site = if_else(str_starts(Samples, "T_"), "Tanzania", "Vietnam"))
+
+ggplot(data = pca_scores,
+       mapping = aes(x = PC1, y = PC2, color = site)) +
+  geom_point(size = 3) +
+  labs(x = paste0("PC1 (", round(variance_explained[1], 1), "%)"),
+       y = paste0("PC2 (", round(variance_explained[2], 1), "%)"),
+       color = "Site",
+       title = "PCA of environmental variables across samples") +
+  scale_color_manual(values = c("Tanzania" = "#E76F51", "Vietnam" = "#2A9D8F")) +
+  # Out favorite colors
+  theme_minimal() +
+  theme(legend.position = 'bottom')
+```

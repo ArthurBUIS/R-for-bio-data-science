@@ -38,6 +38,7 @@ ggplot(data = cancer_data,
   geom_point() +
   labs()
 ```
+
 ```{r}
 # T2: line graph of one variable against another
 
@@ -47,6 +48,7 @@ ggplot(data = cancer_data,
   geom_line() +
   labs()
 ```
+
 ```{r}
 # T3: box plot of one variable
 
@@ -58,6 +60,7 @@ ggplot(data = cancer_data,
        y = "Expression",
        title = "Distribution of g2E09 expression")
 ```
+
 Note: aes(y = g2E09) alone (no x) also produces a single box in current ggplot2 — the x = "..." trick just gives the axis a nicer label and matches what the course expects.
 
 ```{r}
@@ -81,6 +84,7 @@ ggplot(data = cancer_data,
        y = "Density",
        title = "Density of g2E09 expression")
 ```
+
 ```{r}
 # T6: Pick your favorite gene and create a box plot of expression levels stratified on the variable event_label
 
@@ -94,6 +98,7 @@ ggplot(data = cancer_data,
        title = "g2E09 expression stratified by event label") +
   geom_jitter(width = 0.2, alpha = 0.2) # Show the point distribution
 ```
+
 ```{r}
 # T7: Same with density plot
 
@@ -105,6 +110,7 @@ ggplot(data = cancer_data,
        y = "Distribution",
        title = "Distribution of g2E09 expression stratified on the event label")
 ```
+
 ```{r}
 # T8: Pick your favourite gene and create a box plot of expression levels stratified on the variable age_group
 #    Then, add stratification on event_label
@@ -122,7 +128,6 @@ ggplot(data = cancer_data,
        fill = "Event label",
        title = "g2E09 expression by age group and event label")
 ```
-
 
 ```{r}
 # T8: Alternative option
@@ -151,6 +156,7 @@ ggplot(data = cancer_data,
        y = "Gene g7F07",
        title = "Scatter plot of expression levels versus age")
 ```
+
 ```{r}
 #| message: false
 # T10: Pick your favorite two genes and create a scatter plot of their expression levels
@@ -195,7 +201,3 @@ ggplot(data = cancer_data,
 ### Q5: Using your biological knowledge, what is your interpretation of the plot?
 
 This plot is meant to identify the differences between the distribution of gene g1CNS507 between ill and healthy patients, eventually showing a correlation between this gene's expression and the outcome of the disease
-
-
-
-
