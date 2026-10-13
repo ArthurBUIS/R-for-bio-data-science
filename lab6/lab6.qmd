@@ -1,0 +1,279 @@
+---
+title: "lab6"
+author: "Arthur Buis"
+format: html
+---
+
+## Load libraries
+
+```{r}
+#| label: load-libraries
+#| message: false
+
+library(tidyverse)
+library(here)
+library(broom)
+```
+
+
+## Load data
+
+```{r}
+#| label: task-1
+
+raw_dir <- here("data", "_raw")
+data_file <- "gravier.RData"
+data_loc <- "https://github.com/ramhiser/datamicroarray/raw/master/data/"
+
+if( !dir.exists(raw_dir) ){
+  dir.create(path = raw_dir, recursive = TRUE)
+}
+if( !file.exists(here(raw_dir, data_file)) ){
+  download.file(
+    url = str_c(data_loc, data_file),
+    destfile = here(raw_dir, data_file),
+    mode = "wb")
+}
+load(file = here(raw_dir, data_file))
+```
+
+
+Q2: It's not tidy data, it's a list without named columns and proper formatting
+
+## Clean data
+
+```{r}
+#| label: task-2
+
+gravier_clean <- gravier |>
+  bind_cols() |>
+  as_tibble()
+```
+
+Q3: Now, it's more tidy: 
+- Each column is a distinct variable (gene expression)
+- Each row is an observation
+- Each cell has an experimental value
+BUT the good/poor status of the patients is mixed with the other gene columns, is this tidy?
+
+Q5: bind_cols bind data_frames by column. So if some data frames are not using the same format, or are observations of different data sets, or just are sorted in a different way, you can easily mix some observations
+
+### Write clean data to disk
+
+```{r}
+#| label: task-3
+
+clean_dir <- "data"
+clean_file <- "02_gravier_clean.tsv.gz"
+
+if( !dir.exists(here(clean_dir)) ){
+  dir.create(path = here(clean_dir), recursive = TRUE)
+}
+
+write_tsv(x = gravier_clean,
+          file = here(clean_dir, clean_file))
+```
+
+
+## Augment data
+
+```{r}
+#| label: task-4
+
+gravier_clean_aug <- gravier_clean |>
+  mutate(y = case_when(y == "poor" ~ 1,
+                       y == "good" ~ 0)) |> 
+  relocate(early_metastasis = y)
+```
+
+```{r}
+#| label: task-5
+
+clean_aug_file <- "03_gravier_clean_aug.tsv.gz"
+
+write_tsv(x = gravier_clean_aug,
+          file = here(clean_dir, clean_aug_file))
+```
+
+## Analysis
+
+```{r}
+#| label: task-7
+
+my_first_model <- lm(formula = g1E11 ~ early_metastasis, data = gravier_clean_aug)
+my_first_model
+```
+
+```{r}
+#| label: task-8
+
+gravier_clean_aug |>
+  group_by(early_metastasis) |>
+  summarize(mean(g1E11))
+```
+
+Q9: We have: Intercept = mean for (early_meastasis=0) and slope = difference between the means
+
+Q10: My gene is down_regulated from early_metastasis=1
+
+```{r}
+#| label: question-10
+
+my_first_model |> summary()
+```
+
+The p_value is around 0.11, so there's no statistical evidence that there is an association between g1E11 expression and early metastasis
+
+Q12: gravier_clean_aug is a wide dataset: one row contains all the gene expressions for one patient
+
+```{r}
+#| label: task-9
+
+gravier_clean_aug_long <- gravier_clean_aug |>
+  pivot_longer(cols = -early_metastasis,
+               names_to = "gene",
+               values_to = "log2_expr_level")
+```
+
+```{r}
+#| label: task-10
+
+gravier_clean_aug_long_nested <- gravier_clean_aug_long |>
+  group_by(gene) |>
+  nest() 
+
+gravier_clean_aug_long_nested
+```
+
+
+```{r}
+#| label: seed
+
+set.seed(42) # In case I do sampling later and want to have a reproducible workflow
+```
+
+```{r}
+#| label: task-12
+
+gravier_clean_aug_long_nested <- gravier_clean_aug_long_nested |>
+  group_by(gene) |>
+  mutate(model_object = map(.x = data,
+                   .f = ~lm(formula = log2_expr_level ~ early_metastasis,
+                            data = .x)))
+```
+
+```{r}
+#| label: test-task-12
+
+gravier_clean_aug_long_nested |>
+  filter(gene == "g1E11") |> 
+  pull(model_object)
+```
+
+
+```{r}
+#| label: tidying models
+
+gravier_clean_aug_long_nested |>
+  
+  filter(gene == "g1E11") |> 
+  
+  # Pull() on tibbles: This pulls out the model_object variable.
+  #   Note! This is a list, because we nested!
+  pull(model_object) |> 
+  
+  # Pluck() on lists: From the list we got from the last step,
+  #   we "pluck" the first element
+  pluck(1) |>
+  
+  # The result of pluck, is a model object,
+  #   upon which we can call the tidy function
+  tidy(conf.int = TRUE,
+       conf.level = 0.95)
+```
+
+```{r}
+#| label: task-13
+
+gravier_clean_aug_long_nested <- gravier_clean_aug_long_nested |>
+  group_by(gene) |>
+  mutate(model_object_tidy =  map(.x = model_object,
+                                  .f = ~tidy(x = .x,
+                                             conf.int = TRUE,
+                                             conf.level = 0.95)))
+```
+
+## Data wrangling
+
+```{r}
+#| label: task-14
+
+gravier_estimates <- gravier_clean_aug_long_nested |>
+  unnest(model_object_tidy)
+```
+
+```{r}
+#| label: task-15
+
+gravier_estimates <- gravier_estimates |>
+  filter(term == "early_metastasis") |>
+  select("gene", "p.value", "estimate", "conf.low", "conf.high") |>
+  ungroup()
+```
+
+```{r}
+#| label: task-16
+
+gravier_estimates <- gravier_estimates |>
+  ungroup() |>
+  mutate(q.value = p.adjust(p.value, method = "bonferroni"), # This is the default method
+         is_significant = if_else(q.value > 0.05, "no", "yes"))
+```
+
+
+```{r}
+#| label: task-17
+
+gravier_estimates_significant <- gravier_estimates |>
+  filter(is_significant == "yes") |>
+  mutate(gene = fct_reorder(gene, estimate))
+
+ggplot(data = gravier_estimates_significant,
+       mapping = aes(x = estimate,
+                     xmin = conf.low,
+                     xmax = conf.high,
+                     y = gene)) +
+  geom_vline(xintercept = 0) +
+  geom_errorbarh() +
+  geom_point() +
+  labs(x = "Estimates (95% Cls)",
+       title = "Genes Associated with Early Metastasis in Small Node-Negative Breast Carcinoma") +
+  theme_minimal()
+```
+
+```{r}
+#| label: task-18
+
+library(ggrepel)
+
+gravier_estimates <- gravier_estimates |>
+  mutate(significant_gene = if_else(is_significant == "yes", gene, ""))
+
+ggplot(data = gravier_estimates,
+       mapping = aes(x = estimate,,
+                     y = - log10(p.value),
+                     label = significant_gene,
+                     color = is_significant)) +
+  geom_hline(yintercept = 0) +
+  geom_point(alpha = 0.5) +
+  geom_text_repel() +
+  labs(x = "Estimates (95% Cls)",
+       y = "-log10(p)",
+       title = "Genes Associated with Early Metastasis in Small Node-Negative Breast Carcinoma",
+       subtitle = "Genes highlited in turquoise were significant after multiple testing correction") +
+  theme_minimal()
+```
+
+
+
+

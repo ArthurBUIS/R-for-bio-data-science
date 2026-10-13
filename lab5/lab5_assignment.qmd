@@ -1,0 +1,290 @@
+---
+title: "Lab 5 Assignment: Group 07"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+Group 7:
+
+-   Arthur Buis (s263500)
+-   Filipos Michoykov (s263495)
+-   Béatrice Floriane Maulaz (s261794)
+-   Luka Falk Joergensen (s245750)
+-   Nikolaj Krog (s245342)
+
+In the following report we masked most of the code cells to avoid cluttering the html, we hope that it is still understandable!
+
+## Background
+
+In the early 20s, the world was hit by the coronavirus disease 2019 (COVID-19) pandemic. The pandemic was caused by severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2). In Denmark, the virus first confirmed case was on 27 February 2020.
+
+While initially very little was known about the SARS-CoV-2 virus, we did know the general pathology of vira. Briefly, the virus invades the cells and hijacks the intra-cellular machinery. Using the hijacked machinery, components for new virus particles are produced, eventually being packed into the viral envelope and released from the infected cell. Some of these components, viral proteins, is broken down into smaller fragments called peptides by the proteasome. These peptides are transported into the endoplasmic reticulum by the Transporter Associated with antigen Processing (TAP) protein complex. Here, they are aided by chaperones bound to the Major Histocompatilibty Complex class I (MHC-I) and then across the Golgi apparatus they finally get displayed on the surface of the cells. Note, in humans, MHC is also called Human Leukocyte Antigen (HLA) and represents the most diverse genes. Each of us have a total of 6 HLA-alleles, 3 from the maternal and 3 from the paternal side. These are further divided into 3 classes HLA-A, HLA-B and HLA-C and the combination of these constitute the HLA-haplotype for an individual. Once the peptide is bound to the MHC class I at the cell surface and exposed, the MHC-I peptide complex can be recognised by CD8+ Cytotoxic T-Lymphocytes (CTLs) via the T-cell Receptor (TCR). If a cell displays peptides of viral origin, the CTL gets activated and via a cascade induces apoptosis (programmed cell death) of the infected cell.
+
+## Aim
+
+## Load libraries
+
+```{r}
+#| label: Load libraries
+#| message: false
+
+library(tidyverse)
+library(here)
+```
+
+## Load data
+
+```{r}
+#| label: load-data
+#| message: false
+
+peptide_data <- read_csv(file = here("data/_raw/peptide-detail-ci.csv.gz"))
+meta_data <- read_csv(file = here("data/_raw/subject-metadata.csv"))
+```
+
+## Data description
+
+```{r}
+#| label: age-conversion
+#| message: false
+#| include: false
+meta_data <- meta_data |>
+  mutate(Age = as.numeric(Age))
+```
+
+```{r}
+meta_data |> 
+  slice_sample(n = 10)
+```
+
+Q1: There are 144 observations of 30 variables. Some values are missing (N/A)
+
+```{r}
+#| include: false
+meta_data |>
+  group_by(Gender, Cohort) |>
+  filter(Gender == 'M' | Gender == 'F') |>
+  count(Gender)
+```
+
+### Task 1:
+
+```{r}
+#| label: task1-recreating-plot
+
+ggplot(data = meta_data |>
+         filter(Gender %in% c("M", "F")) |>
+         count(Gender, Cohort) |>
+         complete(Gender, Cohort, fill = list(n = 0)),
+       mapping = aes(x = Cohort, y = n, fill = Gender)) +
+  geom_col(position = "dodge", alpha = 0.5, color = 'black') +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 15, hjust = 1))
+```
+
+### Task 2:
+
+```{r}
+#| label: task2-recreating-plot
+#| message: false
+
+ggplot(data = meta_data |>
+         mutate(Age_group = cut(Age, c(20, 30, 40, 50, 60, 70, 80))) |>
+         filter(Gender %in% c("M", "F")) |>
+         count(Gender, Age_group),
+       mapping = aes(x = Age_group, y = n, fill = Gender)) +
+  geom_col(position = "dodge", alpha = 0.5, color = 'black') +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| include: false
+library("table1") # <= Yes, this should normally go at the beginning!
+meta_data |>
+  mutate(Gender = factor(Gender),
+         Cohort = factor(Cohort)) |>
+  table1(x = formula(~ Gender + Age + Race | Cohort),
+         data = _)
+```
+
+```{r}
+#| label: clean-data
+#| include: false
+meta_data <- meta_data |>
+  select(!matches("^(DPA1|DPB1|DQA1|DQB1|DRB)")) |>
+  rename(A1 = `HLA-A...9`,
+         A2 = `HLA-A...10`,
+         B1 = `HLA-B...11`,
+         B2 = `HLA-B...12`,
+         C1 = `HLA-C...13`,
+         C2 = `HLA-C...14`) |>
+    select(-Subject, -`Target Type`, -`Cell Type`)
+```
+
+A new look at the meta data, after cleaning:
+
+```{r}
+#| label: look-at-clean-data
+meta_data |> 
+  slice_sample(n = 10)
+```
+
+A look at the peptide data, before cleaning:
+
+```{r}
+#| label: look-at-peptide-data
+
+peptide_data |> 
+  slice_sample(n = 10)
+```
+
+Q3: There are 154320 observations of 7 variables
+
+```{r}
+#| label: filtering-data
+#| include: false
+peptide_data <- peptide_data |>
+  select(`TCR BioIdentity`, Experiment, `Amino Acids`)
+```
+
+```{r}
+#| include: false
+peptide_data |> 
+  slice_sample(n = 10)
+```
+
+```{r}
+#| include: false
+peptide_data <- peptide_data |>
+  separate(col = `TCR BioIdentity`,
+           into = c("CDR3b", "V_gene", "J_gene"),
+           sep = "\\+") |>
+  relocate(Experiment)
+```
+
+### Task 7:
+
+```{r}
+#| label: task-7
+#| message: false
+
+library(stringr)
+
+peptide_data <- peptide_data |>
+  mutate(n_peptides = stringr::str_count(`Amino Acids`, ",") + 1)
+```
+
+### Task 8:
+
+```{r}
+#| label: task-8
+
+ggplot(data = peptide_data |>
+         count(n_peptides),
+       mapping = aes(x = n_peptides,
+                     y = n)) +
+  geom_col() +
+  theme_minimal()
+```
+
+Q4: The maximum number of peptides assigned to one observation is 13
+
+```{r}
+#| label: task-9
+#| include: false
+
+str_c("peptide_", seq_len(5))
+```
+
+```{r}
+#| label: task-10
+#| include: false
+
+peptide_data <- peptide_data |>
+  separate(col = `Amino Acids`,
+           into = str_c("peptide_", seq_len(13)),
+           sep = ",")
+```
+
+```{r}
+#| label: task-12
+#| include: false
+
+peptide_data <- peptide_data |>
+  pivot_longer(cols = str_c("peptide_", seq_len(13)),
+               names_to = "peptide_n",
+               values_to = "peptide")
+```
+
+```{r}
+#| label: task-13
+#| include: false
+
+peptide_data <- peptide_data |>
+  select(-peptide_n, -n_peptides) |>
+  filter(!is.na(peptide))
+```
+
+```{r}
+#| label: task-14
+#| include: false
+
+peptide_data <- peptide_data |>
+  filter(str_detect(CDR3b, pattern = "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE))
+```
+
+```{r}
+#| label: task-15
+#| include: false
+
+peptide_data <- peptide_data |>
+  mutate(k_CDR3b = str_length(CDR3b), k_peptide = str_length(peptide))
+```
+
+### Tasl 16:
+
+```{r}
+#| label: task-16
+
+ggplot(data = peptide_data |>
+         count(k_CDR3b),
+       mapping = aes(x = k_CDR3b,
+                     y = n)) +
+  geom_col(alpha = 0.5, color = 'black') +
+  theme_minimal()
+```
+
+### Task 17:
+
+```{r}
+#| label: task-17
+
+ggplot(data = peptide_data |>
+         count(k_peptide),
+       mapping = aes(x = k_peptide,
+                     y = n)) +
+  geom_col(alpha = 0.5, color = 'black') +
+  theme_minimal()
+```
+
+Q11: Yes, it's tidy according to the three rules (one cell per value, one row per observation, one column per variable)
+
+Q12: It is wide, as each experience has all its observation in one single row. A long format could have one observation (A1, or A2 or...) per row
+
+```{r}
+#| label: task-18
+#| include: false
+
+meta_data <- meta_data |>
+  pivot_longer(cols = c("A1", "A2", "B1", "B2", "C1", "C2"),
+               names_to = "Gene",
+               values_to = "Allele")
+```
+
+## Analysis
+
+Unfortunately we couldn't reach it...

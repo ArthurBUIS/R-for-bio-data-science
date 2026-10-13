@@ -1,0 +1,220 @@
+---
+title: "lab4"
+author: "Arthur Buis"
+format: html
+editor: visual
+---
+
+## Load libraries
+
+```{r}
+#| label: Load libraries
+#| message: false
+library("tidyverse")
+```
+
+## A few initial questions
+
+```{r}
+#| label: Initial question
+#| results: hide
+tibble(x = c(4, 3, 5, 1, 2))
+```
+
+## Load data
+
+```{r}
+#| label: Load data
+#| message: false
+library(here)
+
+diabetes_data <- read_csv(file = here("data/_raw/diabetes.csv"))
+diabetes_data
+```
+
+## Alternative solution
+
+```{r}
+#| label: Load data bis
+#| eval: false
+# Create the data directory programmatically
+dir.create(path = "data")
+
+# Retrieve the data directly
+diabetes_data <- read_csv(file = "https://hbiostat.org/data/repo/diabetes.csv")
+
+# Write the data to disk
+write_csv(x = diabetes_data,
+          file = "data/diabetes.csv")
+```
+
+Q1: 403 observations, 19 variables Q2: 3 rules: - Each observation has its own row (yes) - Each variable has its own column (yes) - Each value has its own cell (yes) Q3: It is the column type (chr stands for character, dbl for double)
+
+```{r}
+#| label: Task 1
+
+diabetes_data <- diabetes_data |>
+  mutate(height = round(height * 2.54, 1),
+         weight = round(weight * 0.453592, 1),
+         waist  = round(waist * 2.54, 1),
+         hip    = round(hip * 2.54, 1))
+```
+
+```{r}
+#| label: Question 4
+
+diabetes_data |>
+  filter(weight<100) |>
+  count()
+```
+
+Q4: 349 persons weigh more than 100kg
+
+```{r}
+#| label: Question 6
+
+diabetes_data |>
+  filter(weight>100) |>
+  filter(height<160) |>
+  count()
+```
+
+Q6: 2 persons weigh more than 100kg and are less than 1.60m tall
+
+```{r}
+#| label: Question 7
+
+diabetes_data |>
+  filter(gender == 'female', height>180) |>
+  count()
+```
+
+Q7: 4 women are taller than 1.80m
+
+```{r}
+#| label: Task 2
+
+ggplot(data = diabetes_data |>
+         filter(location == 'Louisa', age > 40),
+       mapping = aes(x = weight,
+                     y = height,
+                     color = gender)) +
+  geom_point()
+```
+
+```{r}
+#| label: Task 3
+
+ggplot(data = diabetes_data |>
+         filter(age > 50),
+       mapping = aes(x = height,
+                     y = location,
+                     color = gender)) +
+  geom_boxplot()
+```
+
+```{r}
+#| label: Question 11
+
+diabetes_data |>
+  arrange(age)
+```
+
+Q11: The youngest person is 19 (oldest is 92)
+
+```{r}
+#| label: Question 13
+
+diabetes_data |>
+  filter(age == 20) |>
+  arrange(desc(height))
+```
+
+Q13: Among the 20 years-old, the tallest is 182.9 (shortest is 147.3)
+
+```{r}
+#| label: Question 15
+
+diabetes_data |>
+  select(starts_with("b"))
+```
+
+Q15: 4 columns start with letter b
+
+```{r}
+#| label: Task 5
+
+diabetes_data <- diabetes_data |> 
+  mutate(BMI_class = case_when(
+    BMI < 25 ~ "Normal weight",
+    25 <= BMI & BMI < 30 ~ "Overweight",
+    30 <= BMI & BMI < 35 ~ "Obesity class I",
+    35 <= BMI & BMI < 40 ~ "Obesity class II",
+    BMI >= 40 ~ "Obesity class III"))
+
+diabetes_data <- diabetes_data |>
+  mutate(BMI_class = factor(BMI_class,
+                            levels =  c("Normal weight", "Overweight",
+                                        "Obesity class I", "Obesity class II",
+                                        "Obesity class III")))
+```
+
+```{r}
+#| label: Task 6
+
+ggplot(data = diabetes_data,
+       mapping = aes(x = hdl,
+                     y = BMI_class)) +
+  geom_boxplot()
+```
+
+Q17: Looks like there is a correlation between hdl and obesity
+
+```{r}
+#| label: Task 7
+
+diabetes_data <- diabetes_data |>
+  mutate(BFP = 1.39 * BMI + 0.16 * age - 10.34 * ifelse(gender == "female", 0, 1) - 9)
+```
+
+```{r}
+#| label: Task 8
+#| 
+diabetes_data <- diabetes_data |>
+  mutate(WHR = waist / hip)
+```
+
+```{r}
+#| label: Question 18
+
+p1 <- ggplot(data = diabetes_data,
+       mapping = aes(x = BFP,
+                     y = BMI)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+
+p2 <- ggplot(data = diabetes_data,
+       mapping = aes(x = WHR,
+                     y = BMI)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+
+p1 + p2
+```
+
+```{r}
+#| label: Question 18 bis
+
+cor(diabetes_data$BFP, diabetes_data$BMI, use = "complete.obs")
+cor(diabetes_data$WHR, diabetes_data$BMI, use = "complete.obs")
+```
+
+Considering the graph with linear regressions and the correlation coefficients, we can tell that there is almost no correlation between BMI and WHR, while there is a strong one between BDF and BMI
+
+```{r}
+#| label: Question 23
+
+diabetes_data |>
+  filter(location == 'Buckingham', gender == 'female') |>
+  summarize(avg_age = mean(age))
+```

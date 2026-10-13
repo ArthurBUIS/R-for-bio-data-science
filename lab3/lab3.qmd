@@ -57,6 +57,7 @@ ggplot(data=SPE_ENV,
                      y = Taxa)) +
   geom_boxplot(aes(fill=site))
 ```
+
 ### Task 2
 
 ```{r}
@@ -138,7 +139,6 @@ ggplot(data = SPE_ENV,
 library(ggridges)
 ```
 
-
 ```{r}
 
 taxa_of_interest <- c("Sphingobacteria", "Methanobacteria", "Clostridia",
@@ -160,7 +160,6 @@ ggplot(data = density_df,
 ```
 
 ### Task 9
-
 
 ```{r}
 env_numeric <- ENV |>
@@ -184,4 +183,3 @@ ggplot(data = pca_scores,
   theme_minimal() +
   theme(legend.position = 'bottom')
 ```
-

@@ -42,7 +42,6 @@ SPE_ENV <- read_tsv(file = here("data/SPE_ENV.tsv"))
 SPE_ENV
 ```
 
-
 ### Task 9: Group assignment
 
 ```{r}
